@@ -10,34 +10,41 @@ import (
 )
 
 func main() {
-	// Определяем корень проекта (чтобы запускать из любой директории)
-	projectRoot := getProjectRoot()
-	if err := os.Chdir(projectRoot); err != nil {
-		log.Fatalf("❌ Не удалось установить рабочую директорию: %v", err)
+	// Проверка: можно ли найти шаблон из текущей директории
+	if !templateExists("internal/templates/index.html") {
+		projectRoot := getProjectRoot()
+		if err := os.Chdir(projectRoot); err != nil {
+			log.Fatalf("❌ Не удалось выполнить os.Chdir: %v", err)
+		}
+		log.Println("📁 Авто-переход в директорию:", projectRoot)
 	}
 
 	// Роутинг
 	http.HandleFunc("/", handler.IndexHandler)
 	http.HandleFunc("/download", handler.DownloadHandler)
 
-	// Статические файлы (CSS, favicon и прочее)
+	// Статические файлы
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-
-	// Скачанные видео
 	http.Handle("/downloads/", http.StripPrefix("/downloads/", http.FileServer(http.Dir("downloads"))))
 
-	// Запуск сервера
+	// Сервер
 	log.Println("🚀 Server running on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("❌ Ошибка запуска сервера: %v", err)
+		log.Fatalf("❌ ListenAndServe error: %v", err)
 	}
 }
 
-// getProjectRoot возвращает путь к корню проекта (из /cmd/server → ../../)
+// Проверка наличия шаблона
+func templateExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// Корень проекта для Chdir (из /cmd/server → ../../)
 func getProjectRoot() string {
 	exePath, err := os.Executable()
 	if err != nil {
-		log.Fatalf("❌ Не удалось определить путь к бинарнику: %v", err)
+		log.Fatalf("❌ os.Executable failed: %v", err)
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(exePath), "..", ".."))
 }
