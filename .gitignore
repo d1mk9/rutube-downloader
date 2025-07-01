@@ -1,0 +1,30 @@
+# Go build
+bin/
+*.out
+*.test
+*.exe
+!ffmpeg/bin/ffmpeg.exe
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.swp
+
+# Logs and temp
+*.log
+*.tmp
+*.bak
+
+# Dependency dirs
+vendor/
+node_modules/
+
+# Downloaded files
+downloads/
+
+# Misc
+.env
