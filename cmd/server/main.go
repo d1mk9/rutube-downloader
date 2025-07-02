@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	// Проверка: можно ли найти шаблон из текущей директории
+	// — Авто-смена директории, если нужно —
 	if !templateExists("internal/templates/index.html") {
 		projectRoot := getProjectRoot()
 		if err := os.Chdir(projectRoot); err != nil {
@@ -19,26 +19,18 @@ func main() {
 		log.Println("📁 Авто-переход в директорию:", projectRoot)
 	}
 
-	// Роутинг
+	// — Роутинг —
 	http.HandleFunc("/", handler.IndexHandler)
 	http.HandleFunc("/download", handler.DownloadHandler)
 
-	// Статические файлы
+	// — Статика —
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.Handle("/downloads/", http.StripPrefix("/downloads/", http.FileServer(http.Dir("downloads"))))
 
-	// Запуск HTTP-сервера для редиректа с 80 на 443
-	go func() {
-		log.Fatal(http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			target := "https://" + r.Host + r.URL.RequestURI()
-			http.Redirect(w, r, target, http.StatusMovedPermanently)
-		})))
-	}()
-
-	// Запуск HTTPS-сервера
-	log.Println("🚀 Server running on https://vidpull.ru")
-	err := http.ListenAndServeTLS(":443", "/etc/ssl/vidpull.crt", "/etc/ssl/vidpull.key", nil)
-	if err != nil {
+	// — Слушаем ТОЛЬКО localhost:8080 —
+	addr := "127.0.0.1:8080"
+	log.Println("🚀 Backend running on", addr, "(за nginx-прокси)")
+	if err := http.ListenAndServe(addr, nil); err != nil {
 		log.Fatalf("❌ ListenAndServe error: %v", err)
 	}
 }
