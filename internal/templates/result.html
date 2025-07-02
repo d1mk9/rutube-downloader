@@ -1,24 +1,44 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <!-- Yandex.RTB загрузчик -->
+  <script>window.yaContextCb=window.yaContextCb||[]</script>
+  <script src="https://yandex.ru/ads/system/context.js" async></script>
+
   <meta charset="UTF-8">
   <title>Результат загрузки</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
 
-  <div class="bg-white shadow-xl rounded-2xl p-8 max-w-xl w-full text-center">
-    <h1 class="text-2xl font-bold mb-4">📦 Результат загрузки</h1>
+  <!-- Yandex.Metrika -->
+  <script type="text/javascript">
+    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)});
+    m[i].l=1*new Date();
+    for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+    k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+    (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+    ym(103173683, "init", {
+      clickmap:true,
+      trackLinks:true,
+      accurateTrackBounce:true
+    });
+  </script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/103173683" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen px-4">
+
+  <div class="bg-white shadow-xl rounded-2xl p-8 max-w-xl w-full text-center space-y-6">
+
+    <h1 class="text-2xl font-bold">📦 Результат загрузки</h1>
 
     {{if .Error}}
-      <p class="text-red-600 mb-4">{{.Error}}</p>
+      <p class="text-red-600">{{.Error}}</p>
     {{else if .VideoLink}}
-      <p class="text-green-700 text-lg font-semibold mb-4">
-        ✅ Видео успешно обработано!
-      </p>
+      <div class="space-y-4">
+        <p class="text-green-700 text-lg font-semibold">✅ Видео успешно обработано!</p>
 
-      <div class="flex flex-col items-center space-y-3">
         <a href="/downloads/{{.VideoLink}}" 
            class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
            download>
@@ -30,15 +50,54 @@
           🔁 Скачать ещё
         </a>
       </div>
-
     {{else}}
       <p class="text-gray-500">Нет ссылки на файл.</p>
     {{end}}
 
-    <div class="mt-6 text-sm text-gray-500">
-      <p>Поддержи проект — не забудь поделиться 🔁</p>
+    <!-- Поддержка проекта -->
+    <div class="text-sm text-gray-600 space-y-2 pt-4 border-t mt-6">
+      <p class="font-medium">Поддержи проект — расскажи друзьям:</p>
+
+      <div class="flex justify-center gap-4 text-sm">
+        <button 
+          onclick="copyLink()" 
+          class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+        >
+          🔗 Скопировать ссылку
+        </button>
+
+        <a 
+          href="https://t.me/share/url?url=https://vidpull.ru&text=🔥 Попробуй VidPull — скачивай видео с RuTube!" 
+          target="_blank"
+          class="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition"
+        >
+          📣 Поделиться в Telegram
+        </a>
+      </div>
+    </div>
+
+    <!-- Реклама: основной блок -->
+    <div class="pt-4 border-t text-sm text-gray-400">
+      <div id="yandex_rtb_R-A-16111901-1" class="mt-4"></div>
+      <script>
+        window.yaContextCb.push(() => {
+          Ya.Context.AdvManager.render({
+            "blockId": "R-A-16111901-1",
+            "renderTo": "yandex_rtb_R-A-16111901-1"
+          });
+        });
+      </script>
     </div>
   </div>
 
+  <script>
+    function copyLink() {
+      navigator.clipboard.writeText("https://vidpull.ru").then(() => {
+        alert("Ссылка скопирована в буфер обмена!");
+      }).catch(() => {
+        alert("Ошибка при копировании.");
+      });
+    }
+  </script>
 </body>
 </html>
