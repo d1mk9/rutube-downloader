@@ -1,11 +1,32 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <!-- Yandex.RTB загрузчик -->
+  <script>window.yaContextCb=window.yaContextCb||[]</script>
+  <script src="https://yandex.ru/ads/system/context.js" async></script>
+
   <meta charset="UTF-8">
   <title>Скачать видео с RuTube</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Yandex.Metrika counter -->
+  <script type="text/javascript" >
+     (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+     m[i].l=1*new Date();
+     for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+     k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+     (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+     ym(103173683, "init", {
+          clickmap:true,
+          trackLinks:true,
+          accurateTrackBounce:true
+     });
+  </script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/103173683" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
 </head>
+
 <body class="bg-gray-100 text-gray-800 flex items-center justify-center min-h-screen">
 
   <div class="bg-white shadow-xl rounded-2xl p-8 max-w-lg w-full">
@@ -39,6 +60,20 @@
       </div>
     </div>
 
+<div class="mt-6 pt-4 border-t border-gray-200">
+  <!-- Yandex.RTB R-A-16111901-1 -->
+  <div id="yandex_rtb_R-A-16111901-1"></div>
+  <script>
+  window.yaContextCb.push(() => {
+      Ya.Context.AdvManager.render({
+          "blockId": "R-A-16111901-1",
+          "renderTo": "yandex_rtb_R-A-16111901-1"
+      })
+  })
+  </script>
+</div>
+
+
     <!-- Рекламный блок -->
     <div class="mt-6 text-center text-sm text-gray-500">
       <p>Поддержи проект — не забудь поделиться 🔁</p>
@@ -51,6 +86,25 @@
       document.getElementById("loading").classList.remove("hidden");
     }
   </script>
+
+ <!-- Описание сервиса -->
+<div class="mt-6 text-sm text-gray-600 text-center max-w-md mx-auto">
+  <p>
+    <strong>VidPull</strong> — это инструмент для получения прямых ссылок на видео, размещённые на платформе RuTube. Мы не храним файлы, не распространяем авторский контент и не нарушаем законодательство РФ. Все действия осуществляются по запросу пользователя.
+  </p>
+</div>
+
+<!-- Контактная информация -->
+<div class="mt-4 text-xs text-gray-500 text-center leading-relaxed">
+  <p>📢 Официальный канал: <a href="https://t.me/vidpool" target="_blank" class="text-blue-500 underline">@vidpool</a></p>
+  <p>✉️ По всем вопросам: <a href="https://t.me/offrmdm" target="_blank" class="text-blue-500 underline">@offrmdm</a></p>
+</div>
+
+<!-- Ссылки на юридические страницы -->
+<footer class="mt-6 text-xs text-center text-gray-400 space-x-4">
+  <a href="/terms.html" class="hover:underline">Пользовательское соглашение</a>
+  <a href="/privacy.html" class="hover:underline">Политика конфиденциальности</a>
+</footer>
 
 </body>
 </html>
