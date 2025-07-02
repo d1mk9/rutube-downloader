@@ -27,9 +27,18 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.Handle("/downloads/", http.StripPrefix("/downloads/", http.FileServer(http.Dir("downloads"))))
 
-	// Сервер
-	log.Println("🚀 Server running on http://localhost:8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	// Запуск HTTP-сервера для редиректа с 80 на 443
+	go func() {
+		log.Fatal(http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			target := "https://" + r.Host + r.URL.RequestURI()
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
+		})))
+	}()
+
+	// Запуск HTTPS-сервера
+	log.Println("🚀 Server running on https://vidpull.ru")
+	err := http.ListenAndServeTLS(":443", "/etc/ssl/vidpull.crt", "/etc/ssl/vidpull.key", nil)
+	if err != nil {
 		log.Fatalf("❌ ListenAndServe error: %v", err)
 	}
 }
