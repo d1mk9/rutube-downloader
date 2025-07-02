@@ -265,8 +265,28 @@ func cleanPath(p string) string {
 }
 
 func sanitize(s string) string {
-	rep := strings.NewReplacer("/", "-", "\\", "-", "\n", " ")
-	s = strings.TrimSpace(rep.Replace(s))
+	s = strings.TrimSpace(s)
+
+	// Заменим опасные символы на подчёркивание
+	re := regexp.MustCompile(`[<>:"/\\|?*]+`)
+	s = re.ReplaceAllString(s, "_")
+
+	// Удалим управляющие символы и переводы строк
+	s = strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1
+		}
+		return r
+	}, s)
+
+	// Ограничим длину имени (Telegram не любит очень длинные)
+	const maxLength = 80
+	runes := []rune(s)
+	if len(runes) > maxLength {
+		s = string(runes[:maxLength])
+	}
+
+	// Если всё удалилось — подставим временное имя
 	if s == "" {
 		s = fmt.Sprintf("rutube_%d", time.Now().Unix())
 	}
