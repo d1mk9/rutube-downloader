@@ -22,12 +22,15 @@ func main() {
 	// — Роутинг —
 	http.HandleFunc("/", handler.IndexHandler)
 	http.HandleFunc("/download", handler.DownloadHandler)
+	http.HandleFunc("/terms.html", handler.TermsHandler)
+	http.HandleFunc("/privacy.html", handler.PrivacyHandler)
+	http.HandleFunc("/about.html", handler.AboutHandler)
 
 	// — Статика —
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.Handle("/downloads/", http.StripPrefix("/downloads/", http.FileServer(http.Dir("downloads"))))
 
-	// — Слушаем ТОЛЬКО localhost:8080 —
+	// — Слушаем только localhost:8080 —
 	addr := "127.0.0.1:8080"
 	log.Println("🚀 Backend running on", addr, "(за nginx-прокси)")
 	if err := http.ListenAndServe(addr, nil); err != nil {
@@ -41,7 +44,7 @@ func templateExists(path string) bool {
 	return err == nil
 }
 
-// Корень проекта для Chdir (из /cmd/server → ../../)
+// Определение корня проекта
 func getProjectRoot() string {
 	exePath, err := os.Executable()
 	if err != nil {
