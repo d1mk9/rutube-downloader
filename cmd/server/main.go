@@ -29,6 +29,8 @@ func main() {
 	// — Статика —
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	http.Handle("/downloads/", http.StripPrefix("/downloads/", http.FileServer(http.Dir("downloads"))))
+	http.Handle("/sitemap.xml", http.FileServer(http.Dir("static")))
+	http.Handle("/robots.txt", http.FileServer(http.Dir("static")))
 
 	// — Слушаем только localhost:8080 —
 	addr := "127.0.0.1:8080"
