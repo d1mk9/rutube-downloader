@@ -3,21 +3,103 @@
 <head>
   <meta charset="UTF-8">
   <title>О проекте VidPull</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" href="/static/favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- Yandex.Metrika -->
+  <script type="text/javascript">
+    (function(m,e,t,r,i,k,a){
+      m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+      m[i].l=1*new Date();
+      for (var j = 0; j < document.scripts.length; j++) {
+        if (document.scripts[j].src === r) return;
+      }
+      k=e.createElement(t),a=e.getElementsByTagName(t)[0],
+      k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+    ym(103173683, "init", {
+      clickmap:true,
+      trackLinks:true,
+      accurateTrackBounce:true
+    });
+  </script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/103173683" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+
+  <!-- Yandex.RTB -->
+  <script>window.yaContextCb=window.yaContextCb||[]</script>
+  <script src="https://yandex.ru/ads/system/context.js" async></script>
 </head>
-<body style="font-family: sans-serif; padding: 2rem; max-width: 800px; margin: auto;">
-  <h1>О проекте VidPull</h1>
 
-  <p><strong>VidPull</strong> — это бесплатный онлайн-инструмент, созданный для упрощения доступа к прямым ссылкам на видео, размещённым на платформе <strong>RuTube</strong>. Мы понимаем, что пользователям может потребоваться загрузка видео для просмотра офлайн, презентаций, личных архивов или образовательных целей.</p>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex items-center justify-center px-4">
+  <div class="max-w-xl w-full bg-white shadow-xl rounded-2xl p-8 space-y-8 text-center">
 
-  <p>VidPull не сохраняет и не распространяет видеофайлы. Все ссылки генерируются в режиме реального времени исключительно по запросу пользователя. Проект не нарушает авторские права, так как не вмешивается в размещение контента и не распространяет его.</p>
+    <h1 class="text-2xl font-bold">ℹ️ О проекте VidPull</h1>
 
-  <p>Мы выступаем за законное использование материалов и рекомендуем использовать скачанные файлы только в рамках правомерного использования — например, для личного просмотра, анализа или обучения.</p>
+    <p class="text-gray-700 text-base leading-relaxed">
+      <strong>VidPull</strong> — это онлайн-инструмент, позволяющий получать прямые ссылки на видео, размещённые на платформе RuTube.
+      Мы не сохраняем и не распространяем видеофайлы, а лишь предоставляем техническую возможность пользователю получить ссылку на медиаконтент, уже размещённый публично.
+    </p>
 
-  <p>Проект создан энтузиастом и развивается на добровольной основе. Мы рады вашей поддержке и предложениям по улучшению сервиса.</p>
+    <p class="text-gray-700 text-base leading-relaxed">
+      VidPull работает автоматически и бесплатно. Мы не используем аккаунты пользователей, не собираем персональные данные и не вмешиваемся в структуру RuTube.
+    </p>
 
-  <p>📢 Следите за новостями: <a href="https://t.me/vidpool" target="_blank">@vidpool</a><br>
-     ✉️ Связь с разработчиком: <a href="https://t.me/offrmdm" target="_blank">@offrmdm</a></p>
+    <!-- Поддержка проекта -->
+    <div class="mt-6 text-center text-sm text-gray-600 space-y-2">
+      <p class="font-medium">Поддержи проект — расскажи друзьям:</p>
+
+      <div class="flex justify-center gap-4 text-sm">
+        <button 
+          onclick="copyLink()" 
+          class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition"
+        >
+          🔗 Скопировать ссылку
+        </button>
+
+        <a 
+          href="https://t.me/share/url?url=https://vidpull.ru&text=🔥 Попробуй VidPull — скачивай видео с RuTube!" 
+          target="_blank"
+          class="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition"
+        >
+          📣 Поделиться в Telegram
+        </a>
+      </div>
+    </div>
+
+    <!-- Реклама -->
+    <div class="mt-6 pt-4 border-t border-gray-200">
+      <div id="yandex_rtb_R-A-16111901-1"></div>
+      <script>
+        window.yaContextCb.push(() => {
+          Ya.Context.AdvManager.render({
+            "blockId": "R-A-16111901-1",
+            "renderTo": "yandex_rtb_R-A-16111901-1"
+          });
+        });
+      </script>
+    </div>
+
+    <!-- Контакты и ссылки -->
+    <div class="text-sm text-gray-700 space-y-4 text-center">
+      <div class="space-y-1 text-sm">
+        <p>📢 Канал: <a href="https://t.me/vidpull" target="_blank" class="text-blue-500 underline">@vidpull</a></p>
+        <p>✉️ Контакт: <a href="https://t.me/offrmdm" target="_blank" class="text-blue-500 underline">@offrmdm</a></p>
+      </div>
+
+      <footer class="pt-2 border-t text-xs text-gray-400 space-x-4">
+        <a href="/terms.html" class="hover:underline">Пользовательское соглашение</a>
+        <a href="/privacy.html" class="hover:underline">Политика конфиденциальности</a>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    function copyLink() {
+      navigator.clipboard.writeText("https://vidpull.ru")
+        .then(() => alert("Ссылка скопирована!"))
+        .catch(() => alert("Ошибка при копировании."));
+    }
+  </script>
 </body>
 </html>
