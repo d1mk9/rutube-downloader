@@ -5,7 +5,6 @@
   <title>Скачать видео с RuTube — VidPull</title>
 
   <meta name="description" content="Скачивайте видео с RuTube онлайн и бесплатно! VidPull — удобный сервис для загрузки видео по ссылке. Без программ, рекламы и регистрации.">
-
   <meta name="keywords" content="скачать видео с RuTube, rutube downloader, rutube скачать, rutube загрузка, rutube save, сохранить видео с рутаб, скачать rutube онлайн, загрузить rutube, rutube в mp4, скачать видео с rutube бесплатно">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -50,7 +49,6 @@
         >
       </a>
     </div>
-
 
     <!-- Заголовок и форма -->
     <div>
@@ -103,7 +101,7 @@
       </div>
     </div>
 
-    <!-- Реклама -->
+    <!-- РСЯ блок 1: внизу страницы -->
     <div class="mt-6 pt-4 border-t border-gray-200">
       <div id="yandex_rtb_R-A-16111901-1"></div>
       <script>
@@ -145,6 +143,30 @@
         .then(() => alert("Ссылка скопирована!"))
         .catch(() => alert("Ошибка при копировании."));
     }
+
+    // Вставка второго рекламного блока только на десктопах (ширина >= 768px)
+    document.addEventListener("DOMContentLoaded", function () {
+      if (window.innerWidth >= 768) {
+        const adContainer = document.createElement("div");
+        adContainer.className = "mt-6";
+        adContainer.innerHTML = `
+          <div id="yandex_rtb_R-A-16111901-2"></div>
+          <script>
+            window.yaContextCb.push(() => {
+              Ya.Context.AdvManager.render({
+                blockId: "R-A-16111901-2",
+                renderTo: "yandex_rtb_R-A-16111901-2"
+              });
+            });
+          <\/script>
+        `;
+
+        const form = document.querySelector("form");
+        if (form && form.parentNode) {
+          form.parentNode.insertBefore(adContainer, form.nextSibling);
+        }
+      }
+    });
   </script>
 </body>
 </html>
