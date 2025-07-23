@@ -165,25 +165,29 @@ func fetchOptionsInit(id string) (*playOptions, error) {
 	}, nil
 }
 
-func pickBestVariant(master string) (string, error) {
-	master = cleanPath(master)
-	resp, err := httpClient.Get(master)
+func pickBestVariant(m3u8url string) (string, error) {
+	m3u8url = cleanPath(m3u8url)
+	resp, err := httpClient.Get(m3u8url)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("ошибка загрузки m3u8: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("master http %d", resp.StatusCode)
+		return "", fmt.Errorf("m3u8 http %d", resp.StatusCode)
 	}
+
+	// Пытаемся как master
 	pl := m3u8.NewMasterPlaylist()
-	if err := pl.DecodeFrom(resp.Body, true); err != nil {
-		return "", err
+	if err := pl.DecodeFrom(resp.Body, true); err == nil && len(pl.Variants) > 0 {
+		sort.Slice(pl.Variants, func(i, j int) bool {
+			return pl.Variants[i].Bandwidth > pl.Variants[j].Bandwidth
+		})
+		return resolveURL(m3u8url, pl.Variants[0].URI), nil
 	}
-	if len(pl.Variants) == 0 {
-		return "", errors.New("variants=0")
-	}
-	sort.Slice(pl.Variants, func(i, j int) bool { return pl.Variants[i].Bandwidth > pl.Variants[j].Bandwidth })
-	return resolveURL(master, pl.Variants[0].URI), nil
+
+	// Похоже, это сразу media-плейлист — возвращаем исходную ссылку
+	log.Println("⚠️ M3U8 не содержит вариантов, используем напрямую как media")
+	return m3u8url, nil
 }
 
 func fetchSegments(variant string) ([]string, string, error) {
