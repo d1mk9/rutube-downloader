@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -96,6 +97,15 @@ func extractID(input string) (string, error) {
 }
 
 func fetchOptions(id string) (*playOptions, error) {
+	// Сначала пробуем новый init-эндпоинт
+	if po, err := fetchOptionsInit(id); err == nil && po.VideoBalancer.M3u8 != "" {
+		log.Println("✅ Использован init-эндпоинт")
+		return po, nil
+	} else {
+		log.Printf("⚠️ init-эндпоинт не сработал: %v", err)
+	}
+
+	// Фолбэк на старый play/options
 	url := fmt.Sprintf("https://rutube.ru/api/play/options/%s/?no_404=true&referer=https%%3A%%2F%%2Frutube.ru", id)
 	r, err := httpClient.Get(url)
 	if err != nil {
@@ -110,9 +120,49 @@ func fetchOptions(id string) (*playOptions, error) {
 		return nil, err
 	}
 	if po.VideoBalancer.M3u8 == "" {
-		return nil, errors.New("video_balancer пустой")
+		return nil, errors.New("video_balancer.m3u8 пустой (fallback)")
 	}
 	return &po, nil
+}
+
+func fetchOptionsInit(id string) (*playOptions, error) {
+	url := fmt.Sprintf("https://rutube.ru/api/video/%s/init", id)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0") // Без него бывает 403
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("init http %d", resp.StatusCode)
+	}
+
+	var full map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&full); err != nil {
+		return nil, err
+	}
+
+	// Извлекаем m3u8 вручную
+	m3u8url, ok := full["video_balancer"].(map[string]interface{})["m3u8"].(string)
+	if !ok || m3u8url == "" {
+		return nil, errors.New("m3u8 не найден в init")
+	}
+
+	title, _ := full["title"].(string)
+
+	return &playOptions{
+		Title: title,
+		VideoBalancer: struct {
+			M3u8 string `json:"m3u8"`
+		}{
+			M3u8: m3u8url,
+		},
+	}, nil
 }
 
 func pickBestVariant(master string) (string, error) {
