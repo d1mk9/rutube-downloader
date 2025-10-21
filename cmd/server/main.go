@@ -39,6 +39,7 @@ func main() {
 	http.HandleFunc("/rutube-embed-download", handler.RutubeEmbedHandler)
 	http.HandleFunc("/top-rutube-videos", handler.TopRutubeHandler)
 	http.HandleFunc("/rutube-ads-remove", handler.RutubeAdsRemoveHandler)
+	http.HandleFunc("/progress", handler.ProgressHandler)
 
 	// — Статика —
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))

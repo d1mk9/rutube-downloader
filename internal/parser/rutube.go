@@ -384,3 +384,146 @@ func sanitize(s string) string {
 	}
 	return s
 }
+
+// ExtractMP4WithProgress — то же, что ExtractMP4, но коллбеком репортит прогресс (секунды из ffmpeg / общая длительность).
+func ExtractMP4WithProgress(videoURL string, onProgress func(doneSec, totalSec float64)) (string, error) {
+	id, err := extractID(videoURL)
+	if err != nil {
+		return "", err
+	}
+	opts, err := fetchOptions(id)
+	if err != nil {
+		return "", err
+	}
+	variantURL, err := pickBestVariant(opts.VideoBalancer.M3u8)
+	if err != nil {
+		return "", err
+	}
+
+	// Считаем длительность по media-плейлисту
+	totalDur, err := totalDurationSeconds(variantURL)
+	if err != nil {
+		// не критично — просто не сможем показать проценты
+		totalDur = 0
+	}
+
+	fileName := sanitize(opts.Title) + ".mp4"
+	outPath := filepath.Join("downloads", fileName)
+	if err := os.MkdirAll("downloads", 0o755); err != nil {
+		return "", err
+	}
+
+	if err := ffmpegMuxFromM3U8WithProgress(variantURL, outPath, totalDur, onProgress); err != nil {
+		return "", err
+	}
+	return fileName, nil
+}
+
+// totalDurationSeconds скачивает media m3u8 и суммирует EXTINF
+func totalDurationSeconds(m3u8url string) (float64, error) {
+	resp, err := httpGetWithHeaders(m3u8url)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("m3u8 http %d", resp.StatusCode)
+	}
+	parsed, typ, err := m3u8.DecodeFrom(resp.Body, true)
+	if err != nil {
+		return 0, err
+	}
+	if typ != m3u8.MEDIA {
+		// если вдруг мастер — возьмём лучший и повторим
+		if mp, ok := parsed.(*m3u8.MasterPlaylist); ok && len(mp.Variants) > 0 {
+			best := mp.Variants[0].URI
+			return totalDurationSeconds(resolveURL(m3u8url, best))
+		}
+		return 0, fmt.Errorf("ожидался media playlist")
+	}
+	mp := parsed.(*m3u8.MediaPlaylist)
+	var sum float64
+	for _, s := range mp.Segments {
+		if s != nil {
+			sum += s.Duration
+		}
+	}
+	return sum, nil
+}
+
+func ffmpegMuxFromM3U8WithProgress(m3u8url, outPath string, totalDur float64, onProgress func(done, total float64)) error {
+	ffmpegPath := "ffmpeg"
+	if runtime.GOOS == "windows" {
+		ffmpegPath = "ffmpeg/bin/ffmpeg.exe"
+	}
+	if _, err := exec.LookPath(ffmpegPath); err != nil && runtime.GOOS != "windows" {
+		return fmt.Errorf("ffmpeg не найден в PATH: %w", err)
+	}
+
+	args := []string{
+		"-y",
+		"-protocol_whitelist", "file,http,https,tcp,tls,crypto",
+		"-user_agent", defaultUA,
+		"-referer", defaultRef,
+		// прогресс в stdout раз в 1с
+		"-stats_period", "1",
+		"-progress", "pipe:1",
+		"-i", m3u8url,
+		"-c", "copy",
+		outPath,
+	}
+
+	cmd := exec.Command(ffmpegPath, args...)
+	stdout, _ := cmd.StdoutPipe()
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	// читаем строки вида: out_time_ms=1234567, progress=...
+	go func() {
+		buf := make([]byte, 32*1024)
+		var chunk []byte
+		for {
+			n, err := stdout.Read(buf)
+			if n > 0 {
+				chunk = append(chunk, buf[:n]...)
+				// парсим по строкам
+				for {
+					i := strings.IndexByte(string(chunk), '\n')
+					if i < 0 {
+						break
+					}
+					line := strings.TrimSpace(string(chunk[:i]))
+					chunk = chunk[i+1:]
+					if strings.HasPrefix(line, "out_time_ms=") {
+						msStr := strings.TrimPrefix(line, "out_time_ms=")
+						if ms, e := parseFloat(msStr); e == nil {
+							sec := ms / 1000000.0
+							if onProgress != nil {
+								onProgress(sec, totalDur)
+							}
+						}
+					}
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
+	if err := cmd.Wait(); err != nil {
+		return err
+	}
+	// финальный вызов на 100% (если totalDur известен)
+	if onProgress != nil && totalDur > 0 {
+		onProgress(totalDur, totalDur)
+	}
+	return nil
+}
+
+func parseFloat(s string) (float64, error) {
+	return strconv.ParseFloat(strings.TrimSpace(s), 64)
+}
