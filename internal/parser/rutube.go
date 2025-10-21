@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,15 +15,25 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/grafov/m3u8"
 )
 
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var httpClient = &http.Client{Timeout: 60 * time.Second}
 
+// --- заголовки, близкие к реальным браузерным ---
+var (
+	defaultUA     = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+	defaultRef    = "https://rutube.ru/"
+	defaultAccept = "application/json, text/plain, */*"
+	defaultALang  = "ru-RU,ru;q=0.9,en;q=0.8"
+	defaultOrigin = "https://rutube.ru"
+)
+
+// playOptions — минимум, который нам нужен
 type playOptions struct {
 	Title         string `json:"title"`
 	VideoBalancer struct {
@@ -30,8 +41,7 @@ type playOptions struct {
 	} `json:"video_balancer"`
 }
 
-// ExtractMP4 качает RuTube-ролик, сохраняет в downloads/ и
-// возвращает только имя итогового файла (без папки).
+// ExtractMP4 качает ролик по ссылке и возвращает имя файла (без папки)
 func ExtractMP4(videoURL string) (string, error) {
 	id, err := extractID(videoURL)
 	if err != nil {
@@ -41,45 +51,34 @@ func ExtractMP4(videoURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if opts.VideoBalancer.M3u8 == "" {
+		return "", errors.New("пустой m3u8 в playOptions")
+	}
+
 	variantURL, err := pickBestVariant(opts.VideoBalancer.M3u8)
 	if err != nil {
 		return "", err
 	}
 
-	segs, base, err := fetchSegments(variantURL)
-	if err != nil {
-		return "", err
-	}
-
-	tmp, _ := os.MkdirTemp("", "rutube-*")
-	defer os.RemoveAll(tmp)
-
-	if err := downloadAll(segs, base, tmp); err != nil {
-		return "", err
-	}
-
-	joined := filepath.Join(tmp, "joined.ts")
-	if err := concatTS(segs, tmp, joined); err != nil {
-		return "", err
-	}
-
+	// итоговый путь
 	fileName := sanitize(opts.Title) + ".mp4"
-
-	// итоговый путь — downloads/…
 	outPath := filepath.Join("downloads", fileName)
 	if err := os.MkdirAll("downloads", 0o755); err != nil {
 		return "", err
 	}
 
-	if err := ffmpegCopy(joined, outPath); err != nil {
+	// ffmpeg сам расшифрует (AES-128), склеит и справится с обрывами
+	if err := ffmpegMuxFromM3U8(variantURL, outPath); err != nil {
 		return "", err
 	}
 
-	// удаляем через 5 минут
-	go func(p string) {
-		time.Sleep(5 * time.Minute)
-		_ = os.Remove(p)
-	}(outPath)
+	// Опциональный автоснос (минуты) из окружения DOWNLOAD_TTL_MIN
+	if ttlMin := ttlFromEnv(); ttlMin > 0 {
+		go func(p string, minutes int) {
+			time.Sleep(time.Duration(minutes) * time.Minute)
+			_ = os.Remove(p)
+		}(outPath, ttlMin)
+	}
 
 	return fileName, nil
 }
@@ -96,251 +95,290 @@ func extractID(input string) (string, error) {
 	return m[1], nil
 }
 
+func ttlFromEnv() int {
+	s := strings.TrimSpace(os.Getenv("DOWNLOAD_TTL_MIN"))
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
+
+// общий GET с нужными заголовками
+func httpGetWithHeaders(u string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", defaultUA)
+	req.Header.Set("Referer", defaultRef)
+	req.Header.Set("Accept", defaultAccept)
+	req.Header.Set("Accept-Language", defaultALang)
+	req.Header.Set("Origin", defaultOrigin)
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	return httpClient.Do(req)
+}
+
+// 1) init → 2) play/options → 3) HTML fallback
 func fetchOptions(id string) (*playOptions, error) {
-	// Сначала пробуем новый init-эндпоинт
+	// 1) init
 	if po, err := fetchOptionsInit(id); err == nil && po.VideoBalancer.M3u8 != "" {
 		log.Println("✅ Использован init-эндпоинт")
 		return po, nil
-	} else {
+	} else if err != nil {
 		log.Printf("⚠️ init-эндпоинт не сработал: %v", err)
 	}
 
-	// Фолбэк на старый play/options
-	url := fmt.Sprintf("https://rutube.ru/api/play/options/%s/?no_404=true&referer=https%%3A%%2F%%2Frutube.ru", id)
-	r, err := httpClient.Get(url)
-	if err != nil {
-		return nil, err
+	// 2) play/options
+	if po, err := fetchOptionsPlayOptions(id); err == nil && po.VideoBalancer.M3u8 != "" {
+		log.Println("✅ Использован play/options")
+		return po, nil
+	} else if err != nil {
+		log.Printf("⚠️ play/options не сработал: %v", err)
 	}
-	defer r.Body.Close()
-	if r.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("play/options http %d", r.StatusCode)
+
+	// 3) HTML fallback
+	if po, err := fetchOptionsFromHTML(id); err == nil && po.VideoBalancer.M3u8 != "" {
+		log.Println("✅ Использован HTML-фолбэк (video_balancer.m3u8)")
+		return po, nil
+	} else if err != nil {
+		log.Printf("❌ HTML-фолбэк не сработал: %v", err)
 	}
-	var po playOptions
-	if err := json.NewDecoder(r.Body).Decode(&po); err != nil {
-		return nil, err
-	}
-	if po.VideoBalancer.M3u8 == "" {
-		return nil, errors.New("video_balancer.m3u8 пустой (fallback)")
-	}
-	return &po, nil
+
+	return nil, errors.New("не удалось получить m3u8 ни из init, ни из play/options, ни из HTML")
 }
 
 func fetchOptionsInit(id string) (*playOptions, error) {
-	url := fmt.Sprintf("https://rutube.ru/api/video/%s/init", id)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0") // Без него бывает 403
-
-	resp, err := httpClient.Do(req)
+	u := fmt.Sprintf("https://rutube.ru/api/video/%s/init", id)
+	resp, err := httpGetWithHeaders(u)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("init http %d", resp.StatusCode)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("init http %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
-	var full map[string]interface{}
+	var full map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&full); err != nil {
 		return nil, err
 	}
 
-	// Извлекаем m3u8 вручную
-	m3u8url, ok := full["video_balancer"].(map[string]interface{})["m3u8"].(string)
-	if !ok || m3u8url == "" {
+	vb, _ := full["video_balancer"].(map[string]any)
+	m3u8url, _ := vb["m3u8"].(string)
+	if m3u8url == "" {
 		return nil, errors.New("m3u8 не найден в init")
 	}
-
 	title, _ := full["title"].(string)
 
 	return &playOptions{
 		Title: title,
 		VideoBalancer: struct {
 			M3u8 string `json:"m3u8"`
-		}{
-			M3u8: m3u8url,
-		},
+		}{M3u8: m3u8url},
 	}, nil
 }
 
+func fetchOptionsPlayOptions(id string) (*playOptions, error) {
+	u := fmt.Sprintf("https://rutube.ru/api/play/options/%s/?no_404=true&referer=https%%3A%%2F%%2Frutube.ru", id)
+	resp, err := httpGetWithHeaders(u)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("play/options http %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+	var po playOptions
+	if err := json.NewDecoder(resp.Body).Decode(&po); err != nil {
+		return nil, err
+	}
+	if po.VideoBalancer.M3u8 == "" {
+		return nil, errors.New("video_balancer.m3u8 пустой (play/options)")
+	}
+	return &po, nil
+}
+
+// HTML fallback — вытаскиваем video_balancer.m3u8 из инлайнового JSON на странице
+func fetchOptionsFromHTML(id string) (*playOptions, error) {
+	pageURL := "https://rutube.ru/video/" + id + "/"
+	resp, err := httpGetWithHeaders(pageURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf("html http %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// ищем блок "video_balancer":{...}
+	reVB := regexp.MustCompile(`"video_balancer"\s*:\s*\{[^}]+\}`)
+	vb := reVB.Find(body)
+	if vb == nil {
+		return nil, errors.New("video_balancer не найден в HTML")
+	}
+
+	// m3u8 внутри video_balancer
+	reM3U8 := regexp.MustCompile(`"m3u8"\s*:\s*"([^"]+)"`)
+	m := reM3U8.FindSubmatch(vb)
+	if len(m) < 2 {
+		return nil, errors.New("m3u8 не найден в video_balancer")
+	}
+	m3u8url := string(m[1])
+	// HTML экранирует & как \u0026 — вернём
+	m3u8url = strings.ReplaceAll(m3u8url, `\u0026`, `&`)
+
+	// Заголовок видео (не критично, если не найдём)
+	title := ""
+	reTitle := regexp.MustCompile(`"title"\s*:\s*"([^"]+)"`)
+	if t := reTitle.FindSubmatch(body); len(t) >= 2 {
+		title = string(t[1])
+	}
+
+	return &playOptions{
+		Title: title,
+		VideoBalancer: struct {
+			M3u8 string `json:"m3u8"`
+		}{M3u8: m3u8url},
+	}, nil
+}
+
+// pickBestVariant — если master, берём самый "жирный" вариант; если media — возвращаем как есть
 func pickBestVariant(m3u8url string) (string, error) {
-	m3u8url = cleanPath(m3u8url)
-	resp, err := httpClient.Get(m3u8url)
+	resp, err := httpGetWithHeaders(m3u8url)
 	if err != nil {
 		return "", fmt.Errorf("ошибка загрузки m3u8: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("m3u8 http %d", resp.StatusCode)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return "", fmt.Errorf("m3u8 http %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
-	// Пытаемся как master
-	pl := m3u8.NewMasterPlaylist()
-	if err := pl.DecodeFrom(resp.Body, true); err == nil && len(pl.Variants) > 0 {
-		sort.Slice(pl.Variants, func(i, j int) bool {
-			return pl.Variants[i].Bandwidth > pl.Variants[j].Bandwidth
+	// читаем в буфер, чтобы можно было пробовать и master, и media
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// сначала пробуем как master
+	if mpl, err := tryDecodeMaster(data); err == nil && len(mpl.Variants) > 0 {
+		sort.Slice(mpl.Variants, func(i, j int) bool {
+			return mpl.Variants[i].Bandwidth > mpl.Variants[j].Bandwidth
 		})
-		return resolveURL(m3u8url, pl.Variants[0].URI), nil
+		best := mpl.Variants[0].URI
+		return resolveURL(m3u8url, best), nil
 	}
 
-	// Похоже, это сразу media-плейлист — возвращаем исходную ссылку
-	log.Println("⚠️ M3U8 не содержит вариантов, используем напрямую как media")
-	return m3u8url, nil
+	// возможно, это media — ок, вернём исходный URL
+	if _, err := tryDecodeMedia(data); err == nil {
+		log.Println("⚠️ M3U8 не содержит вариантов, используем напрямую как media")
+		return m3u8url, nil
+	}
+
+	// ни master, ни media — странно, вернём кусок плейлиста для отладки
+	sample := string(data)
+	if len(sample) > 200 {
+		sample = sample[:200]
+	}
+	return "", fmt.Errorf("не удалось распарсить плейлист (ни master, ни media). фрагмент: %q", sample)
 }
 
-func fetchSegments(variant string) ([]string, string, error) {
-	variant = cleanPath(variant)
-	resp, err := httpClient.Get(variant)
+func tryDecodeMaster(b []byte) (*m3u8.MasterPlaylist, error) {
+	mpl := m3u8.NewMasterPlaylist()
+	err := mpl.DecodeFrom(bytes.NewReader(b), true)
+	return mpl, err
+}
+
+func tryDecodeMedia(b []byte) (*m3u8.MediaPlaylist, error) {
+	pl, typ, err := m3u8.DecodeFrom(bytes.NewReader(b), true)
 	if err != nil {
-		return nil, "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("variant http %d", resp.StatusCode)
-	}
-	media, typ, err := m3u8.DecodeFrom(resp.Body, true)
-	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if typ != m3u8.MEDIA {
-		return nil, "", errors.New("ожидался media playlist")
+		return nil, errors.New("это не media playlist")
 	}
-	mpl := media.(*m3u8.MediaPlaylist)
-
-	var segs []string
-	for _, s := range mpl.Segments {
-		if s != nil {
-			segs = append(segs, cleanPath(s.URI))
-		}
-	}
-
-	baseURL, _ := url.Parse(variant)
-	baseURL.Path = filepath.Dir(baseURL.Path) + "/"
-	return segs, baseURL.String(), nil
+	return pl.(*m3u8.MediaPlaylist), nil
 }
 
-func downloadAll(list []string, base, dir string) error {
-	w := runtime.GOMAXPROCS(0) * 2
-	sem := make(chan struct{}, w)
-	var wg sync.WaitGroup
-	var first error
-	var mu sync.Mutex
-
-	for i, n := range list {
-		if n == "" {
-			continue
-		}
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(idx int, name string) {
-			defer func() { <-sem; wg.Done() }()
-			if err := downloadOne(resolveURL(base, name), filepath.Join(dir, fmt.Sprintf("seg%05d.ts", idx))); err != nil {
-				mu.Lock()
-				if first == nil {
-					first = err
-				}
-				mu.Unlock()
-			}
-		}(i, n)
-	}
-	wg.Wait()
-	return first
-}
-
-func downloadOne(u, dst string) error {
-	r, err := httpClient.Get(u)
-	if err != nil {
-		return err
-	}
-	defer r.Body.Close()
-	if r.StatusCode != http.StatusOK {
-		return fmt.Errorf("seg http %d", r.StatusCode)
-	}
-	f, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = io.Copy(f, r.Body)
-	return err
-}
-
-func concatTS(list []string, dir, out string) error {
-	merged, err := os.Create(out)
-	if err != nil {
-		return err
-	}
-	defer merged.Close()
-	for i := range list {
-		seg := filepath.Join(dir, fmt.Sprintf("seg%05d.ts", i))
-		in, err := os.Open(seg)
-		if err != nil {
-			return err
-		}
-		if _, err := io.Copy(merged, in); err != nil {
-			in.Close()
-			return err
-		}
-		in.Close()
-	}
-	return nil
-}
-
-func ffmpegCopy(ts, mp4 string) error {
+func ffmpegMuxFromM3U8(m3u8url, outPath string) error {
 	ffmpegPath := "ffmpeg"
 	if runtime.GOOS == "windows" {
 		ffmpegPath = "ffmpeg/bin/ffmpeg.exe"
 	}
-	cmd := exec.Command(ffmpegPath, "-y", "-i", ts, "-c", "copy", mp4)
+	if _, err := exec.LookPath(ffmpegPath); err != nil && runtime.GOOS != "windows" {
+		return fmt.Errorf("ffmpeg не найден в PATH: %w", err)
+	}
+
+	args := []string{
+		"-y",
+
+		// сети и HLS
+		"-protocol_whitelist", "file,http,https,tcp,tls,crypto",
+		"-allowed_extensions", "ALL",
+
+		// устойчивость к обрывам
+		"-reconnect", "1",
+		"-reconnect_streamed", "1",
+		"-reconnect_on_network_error", "1",
+		"-rw_timeout", "30000000", // 30s в микросекундах
+
+		// заголовки
+		"-user_agent", defaultUA,
+		"-referer", defaultRef,
+
+		// вход
+		"-i", m3u8url,
+
+		// без перекодирования
+		"-c", "copy",
+
+		outPath,
+	}
+
+	cmd := exec.Command(ffmpegPath, args...)
+	// Хотите отладку в логи сервера — можно склеить вывод в буфер и вернуть в ошибке.
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
 func resolveURL(master, ref string) string {
-	master = cleanPath(master)
-	ref = cleanPath(ref)
-
-	// Если ссылка уже абсолютная — возвращаем как есть
 	if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
 		return ref
 	}
-
 	mu, _ := url.Parse(master)
 	ru, _ := url.Parse(ref)
 	return mu.ResolveReference(ru).String()
 }
 
-func cleanPath(p string) string {
-	d, _ := url.PathUnescape(p)
-	return strings.ReplaceAll(d, "\\", "/")
-}
-
 func sanitize(s string) string {
 	s = strings.TrimSpace(s)
-
-	// Заменим опасные символы на подчёркивание
 	re := regexp.MustCompile(`[<>:"/\\|?*]+`)
 	s = re.ReplaceAllString(s, "_")
-
-	// Удалим управляющие символы и переводы строк
 	s = strings.Map(func(r rune) rune {
 		if r < 32 || r == 127 {
 			return -1
 		}
 		return r
 	}, s)
-
-	// Ограничим длину имени (Telegram не любит очень длинные)
 	const maxLength = 80
 	runes := []rune(s)
 	if len(runes) > maxLength {
 		s = string(runes[:maxLength])
 	}
-
-	// Если всё удалилось — подставим временное имя
 	if s == "" {
 		s = fmt.Sprintf("rutube_%d", time.Now().Unix())
 	}

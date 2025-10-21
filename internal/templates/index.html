@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <title>Скачать видео с RuTube — VidPull</title>
-  <meta name="description" content="Скачивайте видео с RuTube онлайн и бесплатно! VidPull — удобный сервис для загрузки видео по ссылке. Без программ, рекламы и регистрации.">
+  <meta name="description"
+    content="Скачивайте видео с RuTube онлайн и бесплатно! VidPull — удобный сервис для загрузки видео по ссылке. Без программ, рекламы и регистрации.">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="yandex-verification" content="2b7159630aed6ca7">
   <link rel="icon" type="image/png" href="/static/favicon.png">
@@ -11,55 +13,24 @@
 
   <!-- Yandex.Metrika -->
   <script type="text/javascript">
-    (function(m,e,t,r,i,k,a){
-      m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-      m[i].l=1*new Date();
+    (function (m, e, t, r, i, k, a) {
+      m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments) };
+      m[i].l = 1 * new Date();
       for (var j = 0; j < document.scripts.length; j++) {
         if (document.scripts[j].src === r) return;
       }
-      k=e.createElement(t),a=e.getElementsByTagName(t)[0],
-      k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+      k = e.createElement(t), a = e.getElementsByTagName(t)[0],
+        k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
     })(window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
     ym(103173683, "init", {
-      clickmap:true,
-      trackLinks:true,
-      accurateTrackBounce:true
+      clickmap: true,
+      trackLinks: true,
+      accurateTrackBounce: true
     });
   </script>
-  <noscript><div><img src="https://mc.yandex.ru/watch/103173683" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-
-  <!-- Yandex.RTB -->
-  <script>window.yaContextCb=window.yaContextCb||[]</script>
-  <script src="https://yandex.ru/ads/system/context.js" async></script>
-
-  <style>
-    #yandex_rtb_R-A-16111901-1,
-    #yandex_rtb_R-A-16111901-2,
-    #yandex_rtb_R-A-16111901-3,
-    #yandex_rtb_R-A-16111901-4,
-    #yandex_rtb_R-A-16111901-5 {
-      min-height: 250px;
-    }
-    #sticky-ad {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background: white;
-      z-index: 9999;
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-      text-align: center;
-      padding: 8px 0;
-    }
-    #sticky-ad .close-btn {
-      position: absolute;
-      top: 6px;
-      right: 12px;
-      font-size: 20px;
-      color: #888;
-      cursor: pointer;
-    }
-  </style>
+  <noscript>
+    <div><img src="https://mc.yandex.ru/watch/103173683" style="position:absolute; left:-9999px;" alt="" /></div>
+  </noscript>
 </head>
 
 <body class="bg-gray-100 text-gray-800 min-h-screen flex items-center justify-center px-4">
@@ -71,17 +42,6 @@
         <img src="/static/logo.png" alt="VidPull Logo" class="h-10 sm:h-12 md:h-14 lg:h-16 object-contain">
       </a>
     </div>
-
-    <!-- 👁️ Реклама под логотипом -->
-    <div id="yandex_rtb_R-A-16111901-3" class="my-4"></div>
-    <script>
-      window.yaContextCb.push(() => {
-        Ya.Context.AdvManager.render({
-          blockId: "R-A-16111901-3",
-          renderTo: "yandex_rtb_R-A-16111901-3"
-        });
-      });
-    </script>
 
     <!-- Заголовок -->
     <h1 class="text-2xl font-bold text-center">🎥 Скачать видео с RuTube</h1>
@@ -96,21 +56,11 @@
       </button>
     </form>
 
-    <!-- 🎯 Реклама после формы -->
-    <div id="yandex_rtb_R-A-16111901-1" class="mt-6"></div>
-    <script>
-      window.yaContextCb.push(() => {
-        Ya.Context.AdvManager.render({
-          blockId: "R-A-16111901-1",
-          renderTo: "yandex_rtb_R-A-16111901-1"
-        });
-      });
-    </script>
-
     <!-- Прелоадер -->
     <div id="loading" class="hidden mt-6 text-blue-600 text-center">
       <div class="flex justify-center mb-2">
-        <svg class="animate-spin h-6 w-6 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <svg class="animate-spin h-6 w-6 mr-2 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+          viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
         </svg>
@@ -118,31 +68,23 @@
       </div>
     </div>
 
-    <!-- Поддержка + реклама -->
+    <!-- Поддержка -->
     <div class="text-center text-sm text-gray-600 space-y-2">
       <p class="font-medium">Поддержи проект — расскажи друзьям:</p>
-
-      <!-- 🙌 Реклама внутри блока -->
-      <div id="yandex_rtb_R-A-16111901-4" class="my-2"></div>
-      <script>
-        window.yaContextCb.push(() => {
-          Ya.Context.AdvManager.render({
-            blockId: "R-A-16111901-4",
-            renderTo: "yandex_rtb_R-A-16111901-4"
-          });
-        });
-      </script>
-
       <div class="flex justify-center gap-4 text-sm">
-        <button onclick="copyLink()" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition">🔗 Скопировать ссылку</button>
-        <a href="https://t.me/share/url?url=https://vidpull.ru&text=🔥 Попробуй VidPull — скачивай видео с RuTube!" target="_blank"
-           class="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition">📣 Поделиться в Telegram</a>
+        <button onclick="copyLink()"
+          class="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition">🔗 Скопировать
+          ссылку</button>
+        <a href="https://t.me/share/url?url=https://vidpull.ru&text=🔥 Попробуй VidPull — скачивай видео с RuTube!"
+          target="_blank" class="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition">📣
+          Поделиться в Telegram</a>
       </div>
     </div>
 
     <!-- Контакты -->
     <div class="text-sm text-gray-700 space-y-4 text-center">
-      <p><strong>VidPull</strong> — инструмент для получения прямых ссылок на видео с RuTube. Мы не храним файлы и не нарушаем авторские права. Вся ответственность лежит на пользователе.</p>
+      <p><strong>VidPull</strong> — инструмент для получения прямых ссылок на видео с RuTube. Мы не храним файлы и не
+        нарушаем авторские права. Вся ответственность лежит на пользователе.</p>
       <p>📢 Канал: <a href="https://t.me/vidpull" class="text-blue-500 underline">@vidpull</a></p>
       <p>✉️ Контакт: <a href="https://t.me/offrmdm" class="text-blue-500 underline">@offrmdm</a></p>
       <footer class="pt-2 border-t text-xs text-gray-400 space-x-4">
@@ -152,37 +94,12 @@
     </div>
   </div>
 
-  <!-- 📱 Sticky снизу -->
-  <div id="sticky-ad">
-    <span class="close-btn" onclick="document.getElementById('sticky-ad').style.display='none'">×</span>
-    <div id="yandex_rtb_R-A-16111901-2"></div>
-  </div>
-  <script>
-    window.yaContextCb.push(() => {
-      Ya.Context.AdvManager.render({
-        blockId: "R-A-16111901-2",
-        renderTo: "yandex_rtb_R-A-16111901-2"
-      });
-    });
-
-    // 🔁 Замена sticky через 60 сек
-    setTimeout(() => {
-      const sticky = document.getElementById('yandex_rtb_R-A-16111901-2');
-      if (sticky) sticky.innerHTML = '';
-      Ya.Context.AdvManager.render({
-        blockId: "R-A-16111901-5",
-        renderTo: "yandex_rtb_R-A-16111901-2"
-      });
-    }, 60000);
-  </script>
-
   <!-- Поведение -->
   <script>
     function showLoading() {
       document.querySelector("form").classList.add("hidden");
       document.getElementById("loading").classList.remove("hidden");
     }
-
     function copyLink() {
       navigator.clipboard.writeText("https://vidpull.ru")
         .then(() => alert("Ссылка скопирована!"))
@@ -190,4 +107,5 @@
     }
   </script>
 </body>
+
 </html>
